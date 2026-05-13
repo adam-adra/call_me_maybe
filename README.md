@@ -216,6 +216,5 @@ README.md
 * Output directory is generated at runtime and must not be committed.
 * The system is designed to work with dynamic function definitions.
 
-```
 
 ---
