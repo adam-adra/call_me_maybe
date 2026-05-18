@@ -2,23 +2,35 @@ from llm_sdk import Small_LLM_Model
 from typing import List, Optional
 from src.vocab.load_vocab import VocabLoader
 from src.models import Loading
+from src.state_machine.state import StateMachine
+from src.prompt_builder import Prompt
+from src.state_machine.state import Output
+import os
+import json
 
+def llm_generation(data: Loading) -> str:
 
-def llm_generation(prompt: str,
-                   max_token: int,
-                   data: Loading) -> str:
+    prompt = Prompt(data.list_function, data.list_prompts)
     model = Small_LLM_Model()
     respond: List[int] = list()
     text_respond: str = str()
-    eos_id = model._tokenizer.pad_token_id
+    list_output: List[Output] = list()
+    
+    pm_nb = 0
+
+    prompt = prompt.prompts[pm_nb] # to change this later
+
+
     token_id = model.encode(prompt)[0].tolist()
-    VocabLoader.read_vocab(model.get_path_to_vocab_file())
+    VocabLoader.read_vocab(model.get_path_to_vocab_file()) # filling the str to id and the id to str
     VocabLoader.tokenize_function_name(
         model, data
-    )
-    VocabLoader.build_trie()
-
-    for i in range(0, max_token):
+    )   
+    VocabLoader.load_vc()
+    VocabLoader.build_trie() # build a tree based on the token id we got from tokenize_fn_name
+    
+   
+    while 1:
         logits = model.get_logits_from_input_ids(token_id)
         masked_logits = VocabLoader.mask_logits(logits,
                                                 respond)
@@ -27,15 +39,16 @@ def llm_generation(prompt: str,
             break
         respond.append(next_token)
         token_id.append(next_token)
-        if (next_token == eos_id):
-            break
     text_respond = model.decode(respond)
-    return text_respond
 
 
-def extractor(text: str, functions: List[str]) -> Optional[str]:
-    splited: List[str] = text.split()
-    for word in splited:
-        if word.lower() in functions:
-            return word
-    return None
+    sm = StateMachine(VocabLoader.vc,
+                      data.list_prompts[pm_nb],
+                      model)
+    sm.template_builder(fn_name=text_respond,
+                                 data=data)
+
+    list_output.append(sm.current_segment().model_dump())
+    return list_output
+
+

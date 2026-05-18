@@ -2,13 +2,28 @@ import json
 from typing import Dict, List
 from llm_sdk import Small_LLM_Model
 from src.models import Loading
-
+from dataclasses import dataclass
 
 class TrieNode:
 
     def __init__(self) -> None:
         self.children: Dict[int, TrieNode] = dict()
         self.end = False
+
+
+class Vocab:
+
+
+    def __init__(self):
+        self.number_start_token: List[int] = list()
+        self.digit_tokens: List[int] = list()
+        self.decimal_tokens: int = None
+        self.quote_token: int = None
+        self.open_brace_token: int = None
+        self.close_brace_token: int = None
+        self.colon_token: int = None
+        self.comma_token: int = None
+        self.space_token: int = None
 
 
 class VocabLoader:
@@ -18,6 +33,7 @@ class VocabLoader:
     fn_token: Dict[str, List[int]] = dict()
     space: str = "Ġ"
     root = TrieNode()
+    vc = Vocab()
 
     @classmethod
     def read_vocab(cls, path: str) -> None:
@@ -39,6 +55,36 @@ class VocabLoader:
             print("[ERROR]:", e)
 
     @classmethod
+    def load_vc(cls):
+        """
+        Load the attribute of the object of the class 
+        Vocab
+        """
+        attributes: Dict = {
+                            "decimal_tokens": ".",
+                            "quote_token": '"',
+                            "open_brace_token": "{",
+                            "close_brace_token": "}",
+                            "colon_token": ":",
+                            "comma_token": ",",
+                            "space_token": cls.space 
+                           }
+
+        for d in [str(d) for d in range(0, 10)]:
+            cls.vc.digit_tokens.append(
+                cls.str_to_id.get(d)
+            )
+            cls.vc.number_start_token.append(
+                cls.str_to_id.get(d)
+            )
+        cls.vc.number_start_token.append(
+            cls.str_to_id.get("-")
+        )
+        for attribute, char in attributes.items():
+            value = cls.str_to_id[char]
+            setattr(cls.vc, attribute, value)
+
+    @classmethod
     def tokenize_function_name(cls,
                                model: Small_LLM_Model,
                                data: Loading) -> None:
@@ -56,8 +102,18 @@ class VocabLoader:
             model.encode(prefix)[0].tolist())
         tokens: List[int]
 
+        # for function in data.list_function:
+        #     params = list(function.parameters.keys())
+        #     full_string = (prefix + f'{function.name}"' 
+        #                    + ", " + '"parameters": {')
+        #     for param in params:
+        #         full_string += f' "{param}": '
+        #         if param != params[-1]:
+        #             full_string += ","
+        #     full_string += " } }"
+
         for function in data.list_function:
-            full_string = prefix + f'{function.name}'
+            full_string = prefix + function.name
             tokens = model.encode(full_string)[0].tolist()
             cls.fn_token.update(
                 {function.name: tokens[prefix_len:]}

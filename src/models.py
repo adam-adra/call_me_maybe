@@ -5,7 +5,7 @@ import os
 
 
 class VariableType(BaseModel):
-    type: Literal["number", "string", "boolean"]
+    type: Literal["number", "string", "boolean", "integer"]
 
 
 class FunctionDefinition(BaseModel):
@@ -67,16 +67,16 @@ class Loading:
                                  model_validate(function_definition))
         except json.JSONDecodeError as e:
             print(e)
-            exit(1)
+            # exit(1)
         except ValidationError as e:
             print(
                 f"[Error]: {e.errors()[0]['msg']} "
                 f"in function number: {function_index + 1}"
             )
-            exit(1)
+            # exit(1)
         except Exception as e:
             print("[Error]:", str(e))
-            exit(1)
+            # exit(1)
         return validated
 
     def load_test_prompts(self, path: str) -> List[FunctionCalling]:
@@ -130,17 +130,4 @@ class Loading:
             exit(1)
         return validated
 
-    def write_results(self, results: List[FunctionDefinition],
-                      path: str) -> None:
-        try:
-            json_data = list()
-            for result in results:
-                json_data.append(result.model_dump())
-            folder = os.path.dirname(path)
-            if folder:
-                os.makedirs(folder, exist_ok=True)
-            with open(path, "w+") as f:
-                json.dump(json_data, f, indent=2)
-        except Exception as e:
-            print(f"[Error]: {e}")
-            exit(1)
+
