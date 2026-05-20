@@ -102,16 +102,6 @@ class VocabLoader:
             model.encode(prefix)[0].tolist())
         tokens: List[int]
 
-        # for function in data.list_function:
-        #     params = list(function.parameters.keys())
-        #     full_string = (prefix + f'{function.name}"' 
-        #                    + ", " + '"parameters": {')
-        #     for param in params:
-        #         full_string += f' "{param}": '
-        #         if param != params[-1]:
-        #             full_string += ","
-        #     full_string += " } }"
-
         for function in data.list_function:
             full_string = prefix + function.name
             tokens = model.encode(full_string)[0].tolist()
@@ -131,7 +121,7 @@ class VocabLoader:
                 if token not in node.children:
                     node.children[token] = TrieNode()
                 node = node.children[token]
-        node.end = True
+            node.end = True
 
     @classmethod
     def get_valid_next_ids(cls,
@@ -153,9 +143,6 @@ class VocabLoader:
             if id not in node.children.keys():
                 return []
             node = node.children[id]
-        # if node.end:
-        #     word = [cls.id_to_str[id] for id in id_chosen]
-        #     return "".join(word)
         return list(node.children.keys())
 
     @classmethod

@@ -1,11 +1,11 @@
 from pydantic import BaseModel, ValidationError
-from typing import Literal, Dict, List
+from typing import Dict, List
 import json
 import os
 
 
 class VariableType(BaseModel):
-    type: Literal["number", "string", "boolean", "integer"]
+    type: str
 
 
 class FunctionDefinition(BaseModel):
@@ -67,17 +67,18 @@ class Loading:
                                  model_validate(function_definition))
         except json.JSONDecodeError as e:
             print(e)
-            # exit(1)
+            exit(1)
         except ValidationError as e:
             print(
                 f"[Error]: {e.errors()[0]['msg']} "
                 f"in function number: {function_index + 1}"
             )
-            # exit(1)
+            exit(1)
         except Exception as e:
             print("[Error]:", str(e))
-            # exit(1)
+            exit(1)
         return validated
+
 
     def load_test_prompts(self, path: str) -> List[FunctionCalling]:
         """
@@ -122,12 +123,10 @@ class Loading:
         except ValidationError as e:
             print(
                 f"[Error]: {e.errors()[0]['msg']} "
-                f"in function number: {prompt_index + 1}"
+                f"in prompt number: {prompt_index + 1}"
             )
             exit(1)
         except Exception as e:
             print("[Error]:", str(e))
             exit(1)
         return validated
-
-
