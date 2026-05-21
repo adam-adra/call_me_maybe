@@ -156,33 +156,56 @@ class StateMachine:
             self.position].append(next_token)
 
     def str_mask(self):
-        ## i changed this check it out
-        if self.final[self.position] and self.final[self.position][-1] == self.vc.quote_token:
+        generated = self.final[self.position]
+        if generated and generated[-1] == self.vc.quote_token:
+            self.end = True
+            return
+
+        n = len(generated)
+
+        # Detect copy-from-prompt mode: if everything generated so far appears
+        # verbatim in the user request, the model is transcribing a value (e.g.
+        # source_string) and needs room to finish. Otherwise it is synthesising
+        # a fresh value (regex, replacement) and must stop quickly.
+        if n > 0:
+            partial = self.model.decode(generated).strip()
+            is_copying = bool(partial) and partial in self.u_prompt.prompt
+        else:
+            is_copying = False
+
+        # Repetition detector — only applied to synthesised values; copied
+        # text legitimately repeats tokens (e.g. "another cat").
+        if not is_copying:
+            for k in (1, 2, 3, 4):
+                if n >= 2 * k and generated[-k:] == generated[-2 * k:-k]:
+                    generated.append(self.vc.quote_token)
+                    self.token_id.append(self.vc.quote_token)
+                    self.end = True
+                    return
+
+        hard_limit = 40 if is_copying else 16
+        if n >= hard_limit:
+            generated.append(self.vc.quote_token)
+            self.token_id.append(self.vc.quote_token)
             self.end = True
             return
 
         original_logits = self.model.get_logits_from_input_ids(self.token_id)
         logits = [float('-inf')] * len(original_logits)
 
-        # allow all tokens EXCEPT those whose text contains a quote
         for token_str, token_id in self.vl.str_to_id.items():
-            if token_str !=  '"' and  '"' not in token_str :
+            if token_str != '"' and '"' not in token_str:
                 logits[token_id] = original_logits[token_id]
 
-        # always allow the quote token so the model can close
-        logits[self.vc.quote_token] = original_logits[self.vc.quote_token]
-
-        # safety net — force close if too long
-        if len(self.final[self.position]) >= 30:
-            self.final[self.position].append(self.vc.quote_token)
-            self.token_id.append(self.vc.quote_token)
-            self.end = True
-            return
+        if is_copying:
+            boost = max(0, n - 10) * 1.0
+        else:
+            boost = max(0, n - 2) * 4.0
+        logits[self.vc.quote_token] = original_logits[self.vc.quote_token] + boost
 
         next_token = logits.index(max(logits))
-
         self.token_id.append(next_token)
-        self.final[self.position].append(next_token)
+        generated.append(next_token)
 
     def is_done(self) -> bool:
         if self.end:
@@ -208,9 +231,19 @@ class StateMachine:
         base_instruction = (
             "Write only the exact value needed. "
             "Be concise and stop immediately when the value is complete. "
-            "Do not repeat, pad, or continue after the value ends."
+            "Do not repeat, pad, or continue after the value ends. "
+            "Use the shortest pattern that correctly matches; never repeat the pattern."
         )
-        base_prompt = base_instruction + "\n" + f'User request: {self.u_prompt.prompt}\n'
+        examples = (
+            "Examples of correct, minimal outputs:\n"
+            'Request: Replace digits in "abc 42 def" with X\n'
+            '{"name": "fn_substitute_string_with_regex", "parameters": {"source_string": "abc 42 def", "regex": "[0-9]+", "replacement": "X"}}\n'
+            "Request: Replace vowels in 'hello world' with -\n"
+            '{"name": "fn_substitute_string_with_regex", "parameters": {"source_string": "hello world", "regex": "[aeiou]", "replacement": "-"}}\n'
+            "Request: Replace 'foo' with 'bar' in 'foo and foo again'\n"
+            '{"name": "fn_substitute_string_with_regex", "parameters": {"source_string": "foo and foo again", "regex": "foo", "replacement": "bar"}}\n'
+        )
+        base_prompt = base_instruction + "\n\n" + examples + "\n" + f'User request: {self.u_prompt.prompt}\n'
         prompt = base_prompt  # tracks the growing JSON context
 
         for self.index in range(len(self.template)):
