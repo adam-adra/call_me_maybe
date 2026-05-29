@@ -1,10 +1,17 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 from llm_sdk import Small_LLM_Model
 from src.models import Loading
-from dataclasses import dataclass
+
 
 class TrieNode:
+    """Node in a prefix trie over token ids.
+
+    Attributes:
+        children (Dict[int, TrieNode]): Mapping from token id to child node.
+        end (bool): Whether this node marks the end of
+        a valid function token sequence.
+    """
 
     def __init__(self) -> None:
         self.children: Dict[int, TrieNode] = dict()
@@ -12,21 +19,33 @@ class TrieNode:
 
 
 class Vocab:
+    """Container for special token ids used by the constrained generator.
 
+    Fields are populated from the model tokenizer vocabulary and include
+    tokens used for numbers, punctuation, and whitespace.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.number_start_token: List[int] = list()
         self.digit_tokens: List[int] = list()
-        self.decimal_tokens: int = None
-        self.quote_token: int = None
-        self.open_brace_token: int = None
-        self.close_brace_token: int = None
-        self.colon_token: int = None
-        self.comma_token: int = None
-        self.space_token: int = None
+        self.decimal_tokens: Optional[int] = None
+        self.quote_token: Optional[int] = None
+        self.open_brace_token: Optional[int] = None
+        self.close_brace_token: Optional[int] = None
+        self.colon_token: Optional[int] = None
+        self.comma_token: Optional[int] = None
+        self.space_token: Optional[int] = None
+        self.true_token: Optional[int] = None
+        self.false_token: Optional[int] = None
 
 
 class VocabLoader:
+    """Helper class to load tokenizer vocabulary and provide utilities.
+
+    This class exposes class-level mappings from string pieces to token ids
+    and provides helpers for building a trie of function name token
+    sequences, masking logits, and resolving valid next token ids.
+    """
 
     str_to_id: Dict[str, int] = dict()
     id_to_str: Dict[int, str] = dict()
@@ -55,30 +74,32 @@ class VocabLoader:
             print("[ERROR]:", e)
 
     @classmethod
-    def load_vc(cls):
+    def load_vc(cls) -> None:
         """
-        Load the attribute of the object of the class 
+        Load the attribute of the object of the class
         Vocab
         """
-        attributes: Dict = {
+        attributes: Dict[str, str] = {
                             "decimal_tokens": ".",
                             "quote_token": '"',
                             "open_brace_token": "{",
                             "close_brace_token": "}",
                             "colon_token": ":",
                             "comma_token": ",",
-                            "space_token": cls.space 
+                            "space_token": cls.space,
+                            "true_token": "true",
+                            "false_token": "false"
                            }
 
         for d in [str(d) for d in range(0, 10)]:
             cls.vc.digit_tokens.append(
-                cls.str_to_id.get(d)
+                cls.str_to_id[d]
             )
             cls.vc.number_start_token.append(
-                cls.str_to_id.get(d)
+                cls.str_to_id[d]
             )
         cls.vc.number_start_token.append(
-            cls.str_to_id.get("-")
+            cls.str_to_id["-"]
         )
         for attribute, char in attributes.items():
             value = cls.str_to_id[char]

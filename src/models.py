@@ -1,14 +1,21 @@
 from pydantic import BaseModel, ValidationError
 from typing import Dict, List
 import json
-import os
 
 
 class VariableType(BaseModel):
+    """
+    Represents a variable type configuration from JSON,
+    validating the type field.
+    """
     type: str
 
 
 class FunctionDefinition(BaseModel):
+    """
+    Validates a complete function schema definition, specifying the name,
+    description, parameter schemas, and the return type schema.
+    """
     name: str
     description: str
     parameters: Dict[str, VariableType]
@@ -16,14 +23,29 @@ class FunctionDefinition(BaseModel):
 
 
 class FunctionCalling(BaseModel):
+    """
+    Represents a raw test prompt received for function generation.
+    """
     prompt: str
 
 
 class Loading:
+    """
+    Data-loader utility class designed to load, parse, and validate JSON inputs
+    into validated Pydantic model configurations.
+    """
 
     def __init__(self,
                  function_path: str,
-                 prompts_path: str):
+                 prompts_path: str) -> None:
+        """
+        Initializes the Loading container, immediately parsing and loading
+        function definitions and prompt lists.
+
+        Args:
+            function_path (str): File path for function schema definitions.
+            prompts_path (str): File path for test prompt definitions.
+        """
         self.list_function = self.load_function_definition(function_path)
         self.list_prompts = self.load_test_prompts(prompts_path)
 
@@ -78,7 +100,6 @@ class Loading:
             print("[Error]:", str(e))
             exit(1)
         return validated
-
 
     def load_test_prompts(self, path: str) -> List[FunctionCalling]:
         """

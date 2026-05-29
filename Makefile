@@ -6,10 +6,9 @@
 #    By: adadra <adadra@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/04/27 23:30:48 by adadra            #+#    #+#              #
-#    Updated: 2026/05/14 00:28:43 by adadra           ###   ########.fr        #
+#    Updated: 2026/05/29 21:42:16 by adadra           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
-
 
 
 PYTHON = python3
@@ -29,12 +28,12 @@ debug:
 	$(UV) run $(PYTHON) -m pdb -m $(MODULE)
 
 lint:
-	$(UV) run flake8 .
-	$(UV) run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	$(UV) run flake8 $(MODULE)
+	$(UV) run mypy $(MODULE) --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	$(UV) run flake8 .
-	$(UV) run mypy . --strict
+	$(UV) run flake8 $(MODULE)
+	$(UV) run mypy $(MODULE) --strict
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

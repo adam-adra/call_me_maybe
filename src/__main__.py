@@ -1,12 +1,14 @@
 from src import llm_generation
 from src import Loading
 import argparse
-from src.state_machine.state import Output
-import os
-from typing import List
-import json
+
 
 def main() -> None:
+    """
+    Main entry point for running the Call Me Maybe function calling system.
+    Parses command-line arguments for function definitions, prompts,
+    and output paths,then executes the constrained LLM generation pipeline.
+    """
     parser = argparse.ArgumentParser(
         description="Taking the function definition and input and output")
 
@@ -25,13 +27,22 @@ def main() -> None:
                         default="data/output/function_calling_results.json",
                         help="Path to output JSON")
 
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="Qwen/Qwen3-0.6B",
+        help="HuggingFace model identifier to use"
+    )
+
     args = parser.parse_args()
     data = Loading(args.functions_definition, args.input)
-    llm_generation(data, args.output)
+    llm_generation(data, args.output, args.model)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         print("The program ended")
+    except Exception as e:
+        print(e)
